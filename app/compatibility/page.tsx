@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Nav } from '@/components/nav';
 import { Footer } from '@/components/footer';
 import { supabase, Model } from '@/lib/supabase';
-import { Badge, Empty, Skeleton } from '@/components/ui';
+import { Empty, Skeleton } from '@/components/ui';
 import { Search, Smartphone, GitCompare, Battery, MonitorSmartphone } from 'lucide-react';
 
 type GroupResult = {
@@ -127,11 +127,11 @@ export default function CompatibilityPage() {
                     <button
                       key={m.id}
                       onClick={() => selectModel(m)}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-panel2 transition-colors"
+                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-panel2 transition-colors"
                     >
-                      <Smartphone size={16} className="text-accent2 shrink-0" />
-                      <span className="text-sm text-ink">{m.name}</span>
-                      {m.brands?.name && <span className="text-xs text-muted ml-auto">{m.brands.name}</span>}
+                      <Smartphone size={18} className="text-accent2 shrink-0" />
+                      <span className="text-base font-medium text-ink">{m.name}</span>
+                      {m.brands?.name && <span className="text-sm text-muted ml-auto">{m.brands.name}</span>}
                     </button>
                   ))
                 )}
@@ -140,12 +140,12 @@ export default function CompatibilityPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="flex items-center justify-between rounded-xl border border-line bg-panel2 px-4 py-3">
-              <div className="flex items-center gap-2">
-                <Smartphone size={16} className="text-accent2" />
-                <span className="font-medium text-ink">{selected.name}</span>
+            <div className="flex items-center justify-between rounded-xl border border-line bg-panel2 px-4 py-3.5">
+              <div className="flex items-center gap-2.5">
+                <Smartphone size={18} className="text-accent2" />
+                <span className="text-base font-semibold text-ink">{selected.name}</span>
               </div>
-              <button onClick={reset} className="text-xs text-accent2 hover:underline">Search another model</button>
+              <button onClick={reset} className="text-sm text-accent2 hover:underline">Search another model</button>
             </div>
 
             {loadingGroups ? (

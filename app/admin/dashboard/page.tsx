@@ -173,12 +173,28 @@ function ProductDialog({ product, categories, brands, onClose, onSave }: { produ
           <div><Label>Price (₹)</Label><Input type="number" step="1" min="0" value={form.price ?? ''} onChange={(e) => setForm({ ...form, price: parseFloat(e.target.value) })} /></div>
           <div><Label>Stock</Label><Input type="number" value={form.stock ?? ''} onChange={(e) => setForm({ ...form, stock: parseInt(e.target.value) })} /></div>
         </div>
+        <div>
+          <Label>Wholesale price (₹) — optional</Label>
+          <Input
+            type="number" step="1" min="0"
+            placeholder="Leave blank to use regular price for wholesalers"
+            value={form.wholesale_price ?? ''}
+            onChange={(e) => setForm({ ...form, wholesale_price: e.target.value === '' ? null : parseFloat(e.target.value) })}
+          />
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Category</Label>
             <select className="w-full rounded-md bg-panel2 border border-line px-3 py-2.5 text-sm text-ink" value={form.category_id || ''} onChange={(e) => setForm({ ...form, category_id: e.target.value || null })}>
               <option value="">None</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {categories.filter((c) => !c.parent_id).map((c) => (
+                <optgroup key={c.id} label={c.name}>
+                  <option value={c.id}>{c.name}</option>
+                  {categories.filter((sc) => sc.parent_id === c.id).map((sc) => (
+                    <option key={sc.id} value={sc.id}>&nbsp;&nbsp;— {sc.name}</option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
           </div>
           <div>
@@ -246,15 +262,22 @@ function CatalogTab() {
 
   if (loading) return <Skeleton className="h-64" />;
 
+  // Group subcategories directly under their parent for a readable list.
+  const topLevel = categories.filter((c) => !c.parent_id);
+  const orderedCategories = topLevel.flatMap((c) => [c, ...categories.filter((sc) => sc.parent_id === c.id)]);
+
   return (
     <div className="grid md:grid-cols-2 gap-8">
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <h2 className="font-display text-lg text-ink">Categories</h2>
+          <div>
+            <h2 className="font-display text-lg text-ink">Categories</h2>
+            <p className="text-xs text-muted">e.g. "Screens" as a parent, with "OLED Screen" / "Set Removed Screen" as subcategories.</p>
+          </div>
           <Button size="sm" onClick={() => setEditingCat({})}><Plus size={14} /> New</Button>
         </div>
-        <Table head={['Name', '']} rows={categories.map((c) => [
-          <span key="n">{c.name}</span>,
+        <Table head={['Name', '']} rows={orderedCategories.map((c) => [
+          <span key="n" className={c.parent_id ? 'pl-4 text-muted' : 'font-medium text-ink'}>{c.parent_id ? `— ${c.name}` : c.name}</span>,
           <div key="a" className="flex gap-2"><button onClick={() => setEditingCat(c)} className="text-muted hover:text-ink"><Pencil size={14} /></button><button onClick={() => removeCategory(c.id)} className="text-muted hover:text-bad"><Trash2 size={14} /></button></div>,
         ])} />
       </div>
@@ -268,9 +291,46 @@ function CatalogTab() {
           <div key="a" className="flex gap-2"><button onClick={() => setEditingBrand(b)} className="text-muted hover:text-ink"><Pencil size={14} /></button><button onClick={() => removeBrand(b.id)} className="text-muted hover:text-bad"><Trash2 size={14} /></button></div>,
         ])} />
       </div>
-      {editingCat && <NameImageDialog title={editingCat.id ? 'Edit category' : 'New category'} item={editingCat} imageKey="image_url" onClose={() => setEditingCat(null)} onSave={saveCategory} />}
+      {editingCat && (
+        <CategoryDialog
+          category={editingCat}
+          allCategories={categories}
+          onClose={() => setEditingCat(null)}
+          onSave={saveCategory}
+        />
+      )}
       {editingBrand && <NameImageDialog title={editingBrand.id ? 'Edit brand' : 'New brand'} item={editingBrand} imageKey="logo_url" onClose={() => setEditingBrand(null)} onSave={saveBrand} />}
     </div>
+  );
+}
+
+function CategoryDialog({ category, allCategories, onClose, onSave }: { category: Partial<Category>; allCategories: Category[]; onClose: () => void; onSave: (f: Partial<Category>, file: File | null) => void }) {
+  const [form, setForm] = useState<Partial<Category>>(category);
+  const [file, setFile] = useState<File | null>(null);
+  // A category can't be its own parent, and to keep things simple we only allow
+  // two levels — so subcategories themselves can't be picked as a parent either.
+  const parentOptions = allCategories.filter((c) => !c.parent_id && c.id !== form.id);
+
+  return (
+    <Dialog open onClose={onClose} title={category.id ? 'Edit category' : 'New category'}>
+      <div className="space-y-3">
+        <div><Label>Name</Label><Input value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+        <div>
+          <Label>Parent category (optional)</Label>
+          <select
+            className="w-full rounded-md bg-panel2 border border-line px-3 py-2.5 text-sm text-ink"
+            value={form.parent_id || ''}
+            onChange={(e) => setForm({ ...form, parent_id: e.target.value || null })}
+          >
+            <option value="">None — this is a top-level category</option>
+            {parentOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <p className="text-xs text-muted mt-1">e.g. make "OLED Screen" a subcategory with parent "Screens".</p>
+        </div>
+        <div><Label>Image</Label><input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm text-muted" /></div>
+        <Button className="w-full" onClick={() => onSave(form, file)}>Save category</Button>
+      </div>
+    </Dialog>
   );
 }
 
@@ -545,18 +605,21 @@ function OrdersTab() {
 function ApprovalsTab() {
   const [pendingAdmins, setPendingAdmins] = useState<any[]>([]);
   const [resetRequests, setResetRequests] = useState<any[]>([]);
+  const [pendingWholesalers, setPendingWholesalers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [resetDialog, setResetDialog] = useState<{ userId: string; name: string } | null>(null);
   const toast = useToast();
 
   const load = useCallback(async () => {
     const sb = supabase();
-    const [a, r] = await Promise.all([
+    const [a, r, w] = await Promise.all([
       sb.from('admins').select('*').eq('status', 'pending'),
       sb.from('reset_requests').select('*, profiles(name)').eq('status', 'pending'),
+      sb.from('profiles').select('id, name, phone, shop_name, shop_address').eq('wholesaler_status', 'pending'),
     ]);
     setPendingAdmins(a.data || []);
     setResetRequests((r.data as any) || []);
+    setPendingWholesalers(w.data || []);
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -565,6 +628,20 @@ function ApprovalsTab() {
     const { error } = await supabase().from('admins').update({ status: 'approved' }).eq('id', id);
     if (error) return toast(error.message, 'bad');
     toast('Admin approved', 'good');
+    load();
+  }
+
+  async function approveWholesaler(id: string) {
+    const { error } = await supabase().from('profiles').update({ wholesaler_status: 'approved' }).eq('id', id);
+    if (error) return toast(error.message, 'bad');
+    toast('Wholesaler approved — they now see wholesale pricing', 'good');
+    load();
+  }
+
+  async function declineWholesaler(id: string) {
+    const { error } = await supabase().from('profiles').update({ is_wholesaler: false, wholesaler_status: null }).eq('id', id);
+    if (error) return toast(error.message, 'bad');
+    toast('Wholesaler request declined', 'good');
     load();
   }
 
@@ -587,6 +664,20 @@ function ApprovalsTab() {
 
   return (
     <div className="space-y-8">
+      <div className="space-y-3">
+        <h2 className="font-display text-lg text-ink">Wholesaler requests</h2>
+        {pendingWholesalers.length === 0 ? <Empty title="No pending wholesaler requests" /> : (
+          <Table head={['Name', 'Shop', 'Phone', '']} rows={pendingWholesalers.map((w) => [
+            <span key="n">{w.name}</span>,
+            <div key="s"><p className="text-ink">{w.shop_name}</p><p className="text-xs text-muted">{w.shop_address}</p></div>,
+            <span key="p">{w.phone || '—'}</span>,
+            <div key="a" className="flex gap-2">
+              <Button size="sm" onClick={() => approveWholesaler(w.id)}>Approve</Button>
+              <Button size="sm" variant="outline" onClick={() => declineWholesaler(w.id)}>Decline</Button>
+            </div>,
+          ])} />
+        )}
+      </div>
       <div className="space-y-3">
         <h2 className="font-display text-lg text-ink">Pending admin approvals</h2>
         {pendingAdmins.length === 0 ? <Empty title="No pending admin requests" /> : (

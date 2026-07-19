@@ -7,6 +7,7 @@ import { Nav } from '@/components/nav';
 import { Footer } from '@/components/footer';
 import { Button, Badge, Skeleton, useToast } from '@/components/ui';
 import { money } from '@/lib/utils';
+import { useWholesalePricing, effectivePrice } from '@/lib/pricing';
 import { PackageX, Minus, Plus } from 'lucide-react';
 
 export default function ProductPage() {
@@ -17,6 +18,7 @@ export default function ProductPage() {
   const [zoomed, setZoomed] = useState(false);
   const [origin, setOrigin] = useState({ x: 50, y: 50 });
   const imageBoxRef = useRef<HTMLDivElement>(null);
+  const { wholesaleActive } = useWholesalePricing();
   const toast = useToast();
   const router = useRouter();
 
@@ -103,7 +105,15 @@ export default function ProductPage() {
               </div>
               <h1 className="font-display text-2xl text-ink">{product.name}</h1>
               <p className="text-muted text-sm leading-relaxed">{product.description}</p>
-              <div className="font-display text-2xl text-accent2">{money(product.price)}</div>
+              <div className="flex items-center gap-3">
+                <div className="font-display text-2xl text-accent2">{money(effectivePrice(product, wholesaleActive))}</div>
+                {wholesaleActive && product.wholesale_price != null && (
+                  <span className="text-sm text-muted line-through">{money(product.price)}</span>
+                )}
+                {wholesaleActive && product.wholesale_price != null && (
+                  <Badge tone="accent">Wholesale price</Badge>
+                )}
+              </div>
               <p className="text-xs font-mono text-muted flex items-center gap-1.5">
                 <span className={`w-1.5 h-1.5 rounded-full ${product.stock > 0 ? 'bg-good' : 'bg-bad'}`} />
                 {product.stock > 0 ? 'In stock, ready to ship' : 'Currently out of stock'}

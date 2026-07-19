@@ -7,12 +7,14 @@ import { Nav } from '@/components/nav';
 import { Footer } from '@/components/footer';
 import { Button, Empty, Skeleton, useToast } from '@/components/ui';
 import { money } from '@/lib/utils';
+import { useWholesalePricing, effectivePrice } from '@/lib/pricing';
 import { Minus, Plus, Trash2, PackageX } from 'lucide-react';
 
 export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
+  const { wholesaleActive } = useWholesalePricing();
   const toast = useToast();
   const router = useRouter();
 
@@ -40,7 +42,8 @@ export default function CartPage() {
     load();
   }
 
-  const total = items.reduce((s, i) => s + (i.products?.price || 0) * i.qty, 0);
+  const lineTotal = (i: CartItem) => (i.products ? effectivePrice(i.products, wholesaleActive) : 0) * i.qty;
+  const total = items.reduce((s, i) => s + lineTotal(i), 0);
 
   async function checkout() {
     setPlacing(true);
@@ -53,7 +56,14 @@ export default function CartPage() {
       setPlacing(false);
       return;
     }
-    const rows = items.map((i) => ({ order_id: order.id, product_id: i.product_id, qty: i.qty, price: i.products?.price || 0 }));
+    // Lock in whichever price applied at checkout time (wholesale or regular),
+    // so later price changes never retroactively alter a placed order.
+    const rows = items.map((i) => ({
+      order_id: order.id,
+      product_id: i.product_id,
+      qty: i.qty,
+      price: i.products ? effectivePrice(i.products, wholesaleActive) : 0,
+    }));
     await sb.from('order_items').insert(rows);
     await sb.from('cart_items').delete().eq('user_id', userData.user.id);
     setPlacing(false);
@@ -65,7 +75,10 @@ export default function CartPage() {
     <div className="min-h-screen flex flex-col">
       <Nav />
       <div className="max-w-3xl mx-auto px-4 py-10 flex-1 w-full">
-        <h1 className="font-display text-2xl text-ink mb-6">Your cart</h1>
+        <div className="flex items-center gap-3 mb-6">
+          <h1 className="font-display text-2xl text-ink">Your cart</h1>
+          {wholesaleActive && <span className="text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full bg-accent/10 text-accent2">Wholesale pricing applied</span>}
+        </div>
         {loading ? (
           <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)}</div>
         ) : items.length === 0 ? (
@@ -81,7 +94,12 @@ export default function CartPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-ink font-medium truncate">{i.products?.name}</p>
-                  <p className="font-semibold text-accent2 text-sm mt-1">{money(i.products?.price || 0)}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="font-semibold text-accent2 text-sm">{i.products ? money(effectivePrice(i.products, wholesaleActive)) : ''}</p>
+                    {wholesaleActive && i.products?.wholesale_price != null && (
+                      <p className="text-xs text-muted line-through">{money(i.products.price)}</p>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 mt-2">
                     <div className="flex items-center border border-line rounded-md">
                       <button onClick={() => updateQty(i.product_id, i.qty - 1)} className="p-1.5 text-muted hover:text-ink"><Minus size={12} /></button>

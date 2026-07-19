@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Input, Label, Button, useToast } from '@/components/ui';
+import { AuthModal } from '@/components/auth-modal';
 import { ShieldCheck } from 'lucide-react';
 
 export default function AdminLogin() {
@@ -37,14 +38,14 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-base">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-line bg-panel p-6">
-        <div className="flex items-center gap-2 text-accent"><ShieldCheck size={20} /><h1 className="font-display text-xl text-ink">Admin login</h1></div>
+    <AuthModal>
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="flex items-center gap-2 text-accent2"><ShieldCheck size={20} /><h1 className="font-display text-xl text-ink">Admin login</h1></div>
         <div><Label>Email</Label><Input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
         <div><Label>Password</Label><Input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
         <Button className="w-full" disabled={loading}>{loading ? 'Signing in…' : 'Log in'}</Button>
-        <p className="text-xs text-muted text-center">New admin? <Link href="/admin/signup" className="text-accent">Request access</Link></p>
+        <p className="text-xs text-muted text-center">New admin? <Link href="/admin/signup" className="text-accent2">Request access</Link></p>
       </form>
-    </div>
+    </AuthModal>
   );
 }

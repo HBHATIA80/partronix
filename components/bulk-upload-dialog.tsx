@@ -9,6 +9,7 @@ type ParsedRow = {
   name: string;
   description: string;
   price: number;
+  wholesalePrice: number | null;
   stock: number;
   categoryName: string;
   brandName: string;
@@ -38,8 +39,8 @@ export function BulkUploadDialog({
 
   function downloadTemplate() {
     const sample = [
-      { Name: 'iPhone 11 Pro OLED Screen', Description: 'Screen assembly for iPhone 11 Pro', Price: 1850, Stock: 10, Category: 'Screens', Brand: 'Apple', 'Image URL': '' },
-      { Name: 'Samsung A50 Battery', Description: '4000mAh replacement battery', Price: 650, Stock: 25, Category: 'Batteries', Brand: 'Samsung', 'Image URL': '' },
+      { Name: 'iPhone 11 Pro OLED Screen', Description: 'Screen assembly for iPhone 11 Pro', Price: 1850, 'Wholesale Price': 1500, Stock: 10, Category: 'Screens', Brand: 'Apple', 'Image URL': '' },
+      { Name: 'Samsung A50 Battery', Description: '4000mAh replacement battery', Price: 650, 'Wholesale Price': '', Stock: 25, Category: 'Batteries', Brand: 'Samsung', 'Image URL': '' },
     ];
     const ws = XLSX.utils.json_to_sheet(sample);
     const wb = XLSX.utils.book_new();
@@ -71,10 +72,13 @@ export function BulkUploadDialog({
           skippedCount++;
           continue;
         }
+        const wpRaw = String(get(['wholesale price', 'wholesale_price', 'wholesaleprice'])).trim();
+        const wholesalePrice = wpRaw === '' ? null : parseFloat(wpRaw);
         parsed.push({
           name,
           description: String(get(['description'])).trim(),
           price,
+          wholesalePrice: wholesalePrice != null && !isNaN(wholesalePrice) ? wholesalePrice : null,
           stock: parseInt(String(get(['stock']))) || 0,
           categoryName: String(get(['category'])).trim(),
           brandName: String(get(['brand'])).trim(),
@@ -112,6 +116,7 @@ export function BulkUploadDialog({
       name: r.name,
       description: r.description || null,
       price: r.price,
+      wholesale_price: r.wholesalePrice,
       stock: r.stock,
       category_id: r.categoryName ? catMap.get(r.categoryName.toLowerCase()) || null : null,
       brand_id: r.brandName ? brandMap.get(r.brandName.toLowerCase()) || null : null,
@@ -142,9 +147,10 @@ export function BulkUploadDialog({
     <Dialog open onClose={onClose} title="Bulk upload products">
       <div className="space-y-4">
         <p className="text-sm text-muted leading-relaxed">
-          Upload an Excel or CSV file with columns: <b>Name</b>, Description, <b>Price</b>, Stock, Category,
-          Brand, Image URL. Category and Brand are matched by name — new ones are created automatically if
-          they don't already exist. Only Name and Price are required.
+          Upload an Excel or CSV file with columns: <b>Name</b>, Description, <b>Price</b>, Wholesale Price,
+          Stock, Category, Brand, Image URL. Category and Brand are matched by name — new ones are created
+          automatically if they don't already exist. Only Name and Price are required — leave Wholesale Price
+          blank for any product that should just use the regular price for wholesalers too.
         </p>
 
         <button onClick={downloadTemplate} className="flex items-center gap-2 text-sm text-accent2 hover:underline">
@@ -172,6 +178,7 @@ export function BulkUploadDialog({
                 <p className="font-medium">{fileName}</p>
                 <p className="text-muted text-xs mt-0.5">
                   {rows.length} products ready to upload{skipped > 0 ? `, ${skipped} rows skipped (missing name or price)` : ''}
+                  {' · '}{rows.filter((r) => r.wholesalePrice != null).length} with a wholesale price
                 </p>
               </div>
             </div>

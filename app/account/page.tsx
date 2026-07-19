@@ -56,7 +56,8 @@ export default function Account() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-display text-xl text-ink">{profile?.name}</h1>
-              {profile?.is_wholesaler && <Badge tone="accent">Wholesaler</Badge>}
+              {profile?.is_wholesaler && profile?.wholesaler_status === 'approved' && <Badge tone="good">Wholesaler</Badge>}
+              {profile?.is_wholesaler && profile?.wholesaler_status === 'pending' && <Badge tone="accent">Wholesaler — pending approval</Badge>}
             </div>
             <p className="text-sm text-muted mt-1">{profile?.email}</p>
             {profile?.phone && <p className="text-sm text-muted">{profile.phone}</p>}

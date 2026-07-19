@@ -8,7 +8,7 @@ export function Footer() {
       <div className="max-w-6xl mx-auto px-4 py-12 grid gap-10 md:grid-cols-[1.2fr_1fr_1fr_1.1fr]">
         <div className="space-y-3 max-w-sm">
           <Link href="/" className="flex items-center gap-2 font-display text-lg text-ink">
-            <Cpu size={20} className="text-accent" /> partronix.IN
+            <Cpu size={20} className="text-accent" /> PartShop
           </Link>
           <p className="text-sm text-muted leading-relaxed">
             We stock and test genuine screens, batteries, and boards ourselves before they
@@ -41,15 +41,14 @@ export function Footer() {
           </form>
           <ul className="space-y-2 text-sm text-muted pt-1">
             <li className="flex items-center gap-2"><Phone size={14} /> Mon–Sat, 10am–7pm IST</li>
-            <li className="flex items-center gap-2"><Phone size={14} /> Contact: +91-8796134690</li>
-            <li className="flex items-center gap-2"><Mail size={14} /> support@partronix.in</li>
+            <li className="flex items-center gap-2"><Mail size={14} /> support@partshop.example</li>
             <li className="flex items-center gap-2"><MapPin size={14} /> Counter pickup available</li>
           </ul>
         </div>
       </div>
       <div className="border-t border-line">
         <div className="max-w-6xl mx-auto px-4 py-4 flex flex-wrap gap-3 justify-between items-center text-xs text-muted">
-          <span>© {new Date().getFullYear()} partronix.IN </span>
+          <span>© {new Date().getFullYear()} PartShop. Prices inclusive of applicable taxes.</span>
           <span className="flex items-center gap-3 font-mono uppercase tracking-wide">
             UPI · Cards · Net Banking · COD
           </span>

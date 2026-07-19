@@ -1,12 +1,18 @@
+'use client';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/lib/supabase';
 import { Badge } from '@/components/ui';
 import { money } from '@/lib/utils';
+import { useWholesalePricing, effectivePrice } from '@/lib/pricing';
 import { PackageX } from 'lucide-react';
 
 export function ProductCard({ p }: { p: Product }) {
   const outOfStock = p.stock <= 0;
+  const { wholesaleActive } = useWholesalePricing();
+  const price = effectivePrice(p, wholesaleActive);
+  const isWholesale = wholesaleActive && p.wholesale_price != null;
+
   return (
     <Link
       href={`/product/${p.id}`}
@@ -23,6 +29,11 @@ export function ProductCard({ p }: { p: Product }) {
             <Badge tone="bad">Out of stock</Badge>
           </div>
         )}
+        {isWholesale && !outOfStock && (
+          <span className="absolute top-2 left-2 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-accent text-white">
+            Wholesale
+          </span>
+        )}
       </div>
       <div className="p-3.5 space-y-2">
         <div className="flex gap-1.5 flex-wrap">
@@ -30,7 +41,10 @@ export function ProductCard({ p }: { p: Product }) {
           {p.categories?.name && <Badge>{p.categories.name}</Badge>}
         </div>
         <p className="text-sm text-ink font-medium leading-snug line-clamp-2">{p.name}</p>
-        <span className="text-accent2 font-semibold text-sm block">{money(p.price)}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-accent2 font-semibold text-sm">{money(price)}</span>
+          {isWholesale && <span className="text-xs text-muted line-through">{money(p.price)}</span>}
+        </div>
       </div>
     </Link>
   );

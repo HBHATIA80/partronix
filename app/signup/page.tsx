@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Input, Label, Button, useToast } from '@/components/ui';
+import { AuthModal } from '@/components/auth-modal';
 import { hashAnswer, cn } from '@/lib/utils';
 
 export default function Signup() {
@@ -33,6 +34,7 @@ export default function Signup() {
       secret_question: form.question,
       secret_answer_hash: answerHash,
       is_wholesaler: form.isWholesaler,
+      wholesaler_status: form.isWholesaler ? 'pending' : null,
       shop_name: form.isWholesaler ? form.shopName : null,
       shop_address: form.isWholesaler ? form.shopAddress : null,
     });
@@ -41,13 +43,13 @@ export default function Signup() {
       toast(profileErr.message, 'bad');
       return;
     }
-    toast('Account created — welcome!', 'good');
+    toast(form.isWholesaler ? 'Account created — wholesaler request sent to admin' : 'Account created — welcome!', 'good');
     router.push('/');
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-line bg-panel p-6">
+    <AuthModal>
+      <form onSubmit={onSubmit} className="space-y-4">
         <h1 className="font-display text-2xl text-ink">Create account</h1>
         <div>
           <Label>Full name</Label>
@@ -102,6 +104,7 @@ export default function Signup() {
               <Label>Shop address</Label>
               <Input required placeholder="Shop no., street, city" value={form.shopAddress} onChange={(e) => setForm({ ...form, shopAddress: e.target.value })} />
             </div>
+            <p className="text-xs text-muted">An admin reviews wholesaler requests — wholesale pricing unlocks once approved.</p>
           </div>
         )}
 
@@ -115,9 +118,9 @@ export default function Signup() {
         </div>
         <Button className="w-full" disabled={loading}>{loading ? 'Creating…' : 'Create account'}</Button>
         <p className="text-xs text-muted text-center">
-          Already have an account? <Link href="/login" className="text-accent">Log in</Link>
+          Already have an account? <Link href="/login" className="text-accent2">Log in</Link>
         </p>
       </form>
-    </div>
+    </AuthModal>
   );
 }

@@ -30,7 +30,7 @@ export function Nav({ query, onQuery }: { query?: string; onQuery?: (q: string) 
           <span className="w-8 h-8 rounded-full bg-accent/15 flex items-center justify-center">
             <Smartphone size={18} className="text-accent2" />
           </span>
-          partronix.IN
+          PartShop
         </Link>
 
         {categories.length > 0 && (

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Input, Label, Button, useToast, Dialog } from '@/components/ui';
+import { AuthModal } from '@/components/auth-modal';
 import { hashAnswer } from '@/lib/utils';
 
 export default function Login() {
@@ -26,8 +27,8 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-line bg-panel p-6">
+    <AuthModal>
+      <form onSubmit={onSubmit} className="space-y-4">
         <h1 className="font-display text-2xl text-ink">Log in</h1>
         <div>
           <Label>Email</Label>
@@ -39,12 +40,12 @@ export default function Login() {
         </div>
         <Button className="w-full" disabled={loading}>{loading ? 'Signing in…' : 'Log in'}</Button>
         <div className="flex items-center justify-between text-xs text-muted">
-          <button type="button" onClick={() => setResetOpen(true)} className="text-accent">Forgot password?</button>
-          <Link href="/signup" className="text-accent">Create account</Link>
+          <button type="button" onClick={() => setResetOpen(true)} className="text-accent2">Forgot password?</button>
+          <Link href="/signup" className="text-accent2">Create account</Link>
         </div>
       </form>
       <ResetDialog open={resetOpen} onClose={() => setResetOpen(false)} />
-    </div>
+    </AuthModal>
   );
 }
 

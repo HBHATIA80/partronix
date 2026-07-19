@@ -11,6 +11,10 @@ create table public.profiles (
   secret_question text not null,
   secret_answer_hash text not null,
   status text not null default 'active' check (status in ('active','reset_requested')),
+  is_wholesaler boolean not null default false,
+  wholesaler_status text check (wholesaler_status in ('pending','approved')),
+  shop_name text,
+  shop_address text,
   created_at timestamptz not null default now()
 );
 
@@ -34,6 +38,7 @@ create table public.categories (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
   image_url text,
+  parent_id uuid references public.categories(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
@@ -42,6 +47,7 @@ create table public.products (
   name text not null,
   description text,
   price numeric(10,2) not null default 0,
+  wholesale_price numeric(10,2),
   stock integer not null default 0,
   image_url text,
   category_id uuid references public.categories(id) on delete set null,
@@ -49,6 +55,12 @@ create table public.products (
   created_at timestamptz not null default now()
 );
 create index products_search_idx on public.products using gin (to_tsvector('english', name || ' ' || coalesce(description,'')));
+
+-- Speeds up the live search's ILIKE '%term%' pattern (which the tsvector index
+-- above can't help with, since it needs a leading wildcard match) — matters
+-- once you're past a few hundred products.
+create extension if not exists "pg_trgm";
+create index products_name_trgm_idx on public.products using gin (name gin_trgm_ops);
 
 -- ---------- CART ----------
 create table public.cart_items (
@@ -83,6 +95,34 @@ create table public.reset_requests (
   created_at timestamptz not null default now()
 );
 
+-- ---------- DEVICE MODELS & PART COMPATIBILITY ----------
+-- Admin-managed list of device models (e.g. "iPhone 11", "iPhone XS", "Samsung A50").
+create table public.models (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  brand_id uuid references public.brands(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index models_name_trgm_idx on public.models using gin (name gin_trgm_ops);
+
+-- A group represents "these models all share an interchangeable part of this type"
+-- e.g. a "display" group containing iPhone XS + iPhone 11 Pro, since the same
+-- screen assembly fits both.
+create table public.compatibility_groups (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  part_type text not null default 'display' check (part_type in ('display','battery','other')),
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+-- Many-to-many: which models belong to which compatibility group.
+create table public.compatibility_group_models (
+  group_id uuid not null references public.compatibility_groups(id) on delete cascade,
+  model_id uuid not null references public.models(id) on delete cascade,
+  primary key (group_id, model_id)
+);
+
 -- ============================================================
 -- HELPER: is the current user an approved admin?
 -- ============================================================
@@ -105,6 +145,9 @@ alter table public.cart_items enable row level security;
 alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 alter table public.reset_requests enable row level security;
+alter table public.models enable row level security;
+alter table public.compatibility_groups enable row level security;
+alter table public.compatibility_group_models enable row level security;
 
 -- Profiles: user reads/updates own row; admins read/update all
 create policy "profile_self_select" on public.profiles for select using (auth.uid() = id or public.is_approved_admin());
@@ -151,6 +194,21 @@ create policy "order_items_insert" on public.order_items for insert with check (
 create policy "reset_owner_insert" on public.reset_requests for insert with check (auth.uid() = user_id);
 create policy "reset_owner_select" on public.reset_requests for select using (auth.uid() = user_id or public.is_approved_admin());
 create policy "reset_admin_update" on public.reset_requests for update using (public.is_approved_admin());
+
+-- Models & compatibility: anyone can view, only approved admins can manage.
+create policy "models_public_read" on public.models for select using (true);
+create policy "models_admin_insert" on public.models for insert with check (public.is_approved_admin());
+create policy "models_admin_update" on public.models for update using (public.is_approved_admin());
+create policy "models_admin_delete" on public.models for delete using (public.is_approved_admin());
+
+create policy "groups_public_read" on public.compatibility_groups for select using (true);
+create policy "groups_admin_insert" on public.compatibility_groups for insert with check (public.is_approved_admin());
+create policy "groups_admin_update" on public.compatibility_groups for update using (public.is_approved_admin());
+create policy "groups_admin_delete" on public.compatibility_groups for delete using (public.is_approved_admin());
+
+create policy "group_models_public_read" on public.compatibility_group_models for select using (true);
+create policy "group_models_admin_insert" on public.compatibility_group_models for insert with check (public.is_approved_admin());
+create policy "group_models_admin_delete" on public.compatibility_group_models for delete using (public.is_approved_admin());
 
 -- ============================================================
 -- SECRET-QUESTION RESET RPCs (security definer — bypass RLS safely,
