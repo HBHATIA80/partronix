@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useEffect, useState, useCallback, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { supabase, Product, Category, Brand } from '@/lib/supabase';
@@ -8,7 +8,7 @@ import { Footer } from '@/components/footer';
 import { ProductCard } from '@/components/product-card';
 import { Skeleton, Empty, Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, Wrench, Truck, PackageOpen, ArrowUpDown, GitCompare, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Wrench, Truck, PackageOpen, ArrowUpDown, GitCompare, ArrowRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 const PAGE_SIZE = 24;
@@ -54,16 +54,28 @@ function HomeInner() {
     return () => clearTimeout(t);
   }, [query]);
 
+  const topLevelCategories = useMemo(() => categories.filter((c) => !c.parent_id), [categories]);
+  const childrenOf = useCallback((parentId: string) => categories.filter((c) => c.parent_id === parentId), [categories]);
+
+  // If the selected category has subcategories, filtering should include
+  // products tagged directly on any of those subcategories too — otherwise
+  // picking the parent "Screens" would miss everything filed under "OLED Screen".
+  const categoryIdsForFilter = useMemo(() => {
+    if (!categoryId) return null;
+    const kids = childrenOf(categoryId).map((c) => c.id);
+    return kids.length > 0 ? [categoryId, ...kids] : [categoryId];
+  }, [categoryId, childrenOf]);
+
   const runQuery = useCallback((sb: ReturnType<typeof supabase>, from: number, to: number) => {
     let q = sb.from('products').select('*, categories(name), brands(name)', { count: 'exact' });
     if (debounced) q = q.ilike('name', `%${debounced}%`);
-    if (categoryId) q = q.eq('category_id', categoryId);
+    if (categoryIdsForFilter) q = q.in('category_id', categoryIdsForFilter);
     if (brandId) q = q.eq('brand_id', brandId);
     if (sortBy === 'price_asc') q = q.order('price', { ascending: true });
     else if (sortBy === 'price_desc') q = q.order('price', { ascending: false });
     else q = q.order('created_at', { ascending: false });
     return q.range(from, to);
-  }, [debounced, categoryId, brandId, sortBy]);
+  }, [debounced, categoryIdsForFilter, brandId, sortBy]);
 
   // filters/search/sort changed — reset to page 1
   useEffect(() => {
@@ -90,14 +102,24 @@ function HomeInner() {
   }
 
   const hasFilters = categoryId || brandId || debounced;
+  const selectedCategory = categories.find((c) => c.id === categoryId) || null;
+  const selectedIsTopLevel = selectedCategory && !selectedCategory.parent_id;
+  const subcategoriesOfSelected = selectedIsTopLevel ? childrenOf(selectedCategory!.id) : [];
 
   return (
     <div className="min-h-screen flex flex-col">
       <Nav query={query} onQuery={setQuery} />
 
+      <div className="bg-ink text-white text-xs sm:text-sm font-medium">
+        <div className="max-w-6xl mx-auto px-4 py-2 flex items-center justify-center gap-2 text-center">
+          <Sparkles size={14} className="text-accent shrink-0" />
+          New stock added every week · Free shipping over ₹999 · Cash on delivery available
+        </div>
+      </div>
+
       <section className="max-w-6xl mx-auto px-4 pt-14 pb-10 text-center">
         <h1 className="font-display text-3xl md:text-[2.75rem] leading-[1.15] text-ink max-w-2xl mx-auto">
-         Screens||Spare-Parts||Accessories
+          We take phones apart so you don't have to guess which part fits yours.
         </h1>
         <p className="text-muted mt-3 max-w-lg mx-auto text-[15px] leading-relaxed">
           Every screen, battery, and board on this site has been checked against the
@@ -128,10 +150,10 @@ function HomeInner() {
         </Link>
       </section>
 
-      {categories.length > 0 && (
+      {topLevelCategories.length > 0 && (
         <section className="max-w-6xl mx-auto px-4 pb-14">
           <div className="flex gap-6 md:gap-10 overflow-x-auto pb-2 justify-center flex-wrap">
-            {categories.map((c) => (
+            {topLevelCategories.map((c) => (
               <button key={c.id} onClick={() => selectCategory(c.id)} className="flex flex-col items-center gap-2.5 shrink-0 group">
                 <span className="w-20 h-20 rounded-full bg-panel2 border border-line flex items-center justify-center overflow-hidden group-hover:border-accent transition-colors relative">
                   {c.image_url ? (
@@ -147,14 +169,14 @@ function HomeInner() {
         </section>
       )}
 
-      {categories.length > 0 && (
+      {topLevelCategories.length > 0 && (
         <section className="max-w-6xl mx-auto px-4 pb-16">
           <div className="text-center mb-8">
             <p className="text-accent2 text-xs font-semibold uppercase tracking-wide">Shop by category</p>
             <h2 className="font-display text-2xl md:text-3xl text-ink mt-1">Popular right now</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-5">
-            {categories.slice(0, 3).map((c) => (
+            {topLevelCategories.slice(0, 3).map((c) => (
               <button
                 key={c.id}
                 onClick={() => selectCategory(c.id)}
@@ -175,12 +197,21 @@ function HomeInner() {
       )}
 
       <section id="catalog" className="max-w-6xl mx-auto px-4 pb-20 flex-1 w-full scroll-mt-20">
-        <div className="flex gap-2 flex-wrap items-center mb-4">
+        <div className="flex gap-2 flex-wrap items-center mb-3">
           <FilterChip active={!categoryId} onClick={() => selectCategory(null)}>All categories</FilterChip>
-          {categories.map((c) => (
-            <FilterChip key={c.id} active={categoryId === c.id} onClick={() => selectCategory(c.id === categoryId ? null : c.id)}>{c.name}</FilterChip>
+          {topLevelCategories.map((c) => (
+            <FilterChip key={c.id} active={categoryId === c.id || c.id === selectedCategory?.parent_id} onClick={() => selectCategory(c.id === categoryId ? null : c.id)}>{c.name}</FilterChip>
           ))}
         </div>
+
+        {subcategoriesOfSelected.length > 0 && (
+          <div className="flex gap-2 flex-wrap items-center mb-3 pl-4 border-l-2 border-accent/30">
+            {subcategoriesOfSelected.map((sc) => (
+              <FilterChip key={sc.id} active={categoryId === sc.id} onClick={() => selectCategory(sc.id === categoryId ? selectedCategory!.id : sc.id)}>{sc.name}</FilterChip>
+            ))}
+          </div>
+        )}
+
         <div className="flex gap-2 flex-wrap items-center mb-6">
           <FilterChip active={!brandId} onClick={() => setBrandId(null)}>All brands</FilterChip>
           {brands.map((b) => (
