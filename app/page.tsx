@@ -119,7 +119,7 @@ function HomeInner() {
 
       <section className="max-w-6xl mx-auto px-4 pt-14 pb-10 text-center">
         <h1 className="font-display text-3xl md:text-[2.75rem] leading-[1.15] text-ink max-w-2xl mx-auto">
-          We take phones apart so you don't have to guess which part fits yours.
+          Partronix.IN: Parts when You Need Them, Tested for Your Device
         </h1>
         <p className="text-muted mt-3 max-w-lg mx-auto text-[15px] leading-relaxed">
           Every screen, battery, and board on this site has been checked against the
