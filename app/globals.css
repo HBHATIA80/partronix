@@ -8,7 +8,7 @@ body {
 }
 
 ::selection {
-  background: rgba(20, 184, 166, 0.18);
+  background: rgba(245, 166, 35, 0.2);
 }
 
 .line-clamp-2 {
@@ -19,7 +19,7 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid #14B8A6;
+  outline: 2px solid #F5A623;
   outline-offset: 2px;
 }
 
